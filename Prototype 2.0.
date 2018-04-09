@@ -1,0 +1,70 @@
+import io
+import picamera
+import httplib, urllib, base64, json, requests, time
+
+subscription_key = 'e0eb6844ffad43709845019f44f15d0f'
+vision_base_url = 'https://westcentralus.api.cognitive.microsoft.com/vision/v1.0/'
+vision_analyze_url = vision_base_url + 'analyze'
+
+# Setting up the parameters necessary for request to server with image recognition model
+headers = {
+    # Request headers.
+    'Ocp-Apim-Subscription-Key': subscription_key,    
+    'Content-Type': 'application/octet-stream',}
+params = urllib.urlencode({
+    # Request parameters. All of them are optional.
+    'visualFeatures': 'Categories,Description,Color'
+})
+
+length_stream = 5 # How long recording will be
+
+camera = picamera.PiCamera()
+camera.resolution = (640, 480) #60 fps
+camera.start_preview()
+
+image_num = 1
+camera.annotate_text_size = 70
+
+for i in range(length_stream):
+    time.sleep(1)
+    camera.annotate_text = 'No object detected'
+    
+    camera.capture('test.jpg')
+    image_data = open('test.jpg', 'rb').read()
+
+    # Make request to Azure's Computer Vision API
+    response = requests.post(vision_analyze_url, headers=headers, params=params, data=image_data)
+    response.raise_for_status()
+    analysis = response.json()
+
+    # Parse out tags to image        
+    tags = analysis['description']['tags'] 
+
+    if 'bottle' in tags or 'water' in tags:
+        camera.annotate_text = 'Water bottle'
+    elif 'hat' in tags or 'cap' in tags:
+        camera.annotate_text = 'Hat'
+    elif 'money' in tags or 'bill' in tags:
+        camera.annotate_text = 'Money'
+    elif 'card' in tags:
+        camera.annotate_text = 'Card'
+    elif 'book' in tags:
+        camera.annotate_text = 'Book'
+    elif 'pencil' in tags:
+        camera.annotate_text = 'Pencil'
+    elif 'phone' in tags:
+        camera.annotate_text = 'Phone'
+    elif 'paper' in tags:
+        camera.annotate_text = 'Paper'
+    elif 'wallet' in tags:
+        camera.annotate_text = 'Wallet'
+
+    time.sleep(1)
+    image_num += 1
+
+camera.stop_preview()
+
+print('Finished capturing video frames')
+
+
+
